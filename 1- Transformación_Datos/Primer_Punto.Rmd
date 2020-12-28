@@ -1,0 +1,109 @@
+---
+title: "1-Transformacion de los Datos"
+author: "Angie Lorena Pradilla"
+date: "28/12/2020"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+A continuación cargaremos la base de datos y las librerías necesarias para realizar los procesos 
+
+```{r, echo = TRUE}
+
+library(dplyr)
+library(readr)
+
+data_org <- read_delim("C:/Users/User/Desktop/20201124-test-convocatoria/01. transformacion_datos/data_org.csv", 
+                       ";", escape_double = FALSE, trim_ws = TRUE)
+datos <- data_org
+
+```
+
+## 1.  renombrar los nombres de las columnas 
+
+
+
+```{r}
+names(datos)[1]="FechaContable"
+names(datos)[2]="FechaTransaccion"
+names(datos)[3]="HoraTransaccion"
+names(datos)[4]="Empresa"
+names(datos)[5]="RutaSae"
+names(datos)[6]="Linea"
+names(datos)[7]="StrParadero"
+names(datos)[8]="TipoVehiculo"
+names(datos)[9]="Bus"
+names(datos)[10]="TipoValidacion"
+names(datos)[11]="StrLinea"
+
+```
+
+A continuación se evidencian los nuevos nombres de las variables
+
+```{r}
+names(datos)
+
+```
+
+
+## 2. Crear o eliminar columnas de acuerdo con el dataset final 
+
+Creamos las columnas Paradero y StrRutaSae  con valores en 0 para mas adelante poder ocuparlos, adicionalmente se crea la variable Cenefa la cual contiene los dígitos de la variable StrParadero antes de las letras TM/GM y eliminamos la variable TipoVehiculo. 
+
+
+```{r}
+datos$Paradero <- 0
+datos$StrRutaSae <- NA
+datos$Cenefa <- substr(datos$StrParadero, start = 8, stop = 14)
+borrar <- c("TipoVehiculo")
+datos <- datos[ , !(names(datos) %in% borrar)]
+```
+
+
+## 3. Convertir las columnas de fecha en formato "%Y-%m-%d"
+
+```{r}
+datos$FechaContable <- format(as.Date(datos$FechaContable ,format="%m/%d/%Y"),"%Y-%m-%d")
+datos$FechaContable <- as.Date(datos$FechaContable,format = "%Y-%m-%d")
+
+datos$FechaTransaccion <- format(as.Date(datos$FechaTransaccion ,format="%m/%d/%Y"),"%Y-%m-%d")
+datos$FechaTransaccion <- as.Date(datos$FechaTransaccion,format = "%Y-%m-%d")
+
+class(datos$FechaTransaccion)
+class(datos$FechaContable)
+
+```
+## 4. De la columna 'SrtParadero' obtener solo los dígitos 
+```{r}
+
+datos$Paradero <- substr(datos$StrParadero, start = 2, stop = 6)
+View(datos)
+```
+
+
+## 5. De la columna 'SrtLinea' obtener solo el texto
+
+```{r}
+
+datos$StrLinea <- substring(datos$StrLinea, 7)
+```
+
+
+## 6. Guardar la base final
+```{r}
+
+write.csv(datos, file = "data_fnl.csv", row.names = TRUE)
+```
+
+
+```{r}
+
+```
+
+
