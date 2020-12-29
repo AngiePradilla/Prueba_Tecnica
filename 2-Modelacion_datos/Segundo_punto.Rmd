@@ -1,0 +1,445 @@
+---
+title: "2- Modelación_Datos"
+author: "Angie Lorena Pradilla"
+date: "28/12/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Modelación de datos 
+
+En primera instancia cargamos la base de datos para realizar el modelaje y las librerías necesarias
+
+```{r }
+
+library(readr)
+library(timeSeries)
+library(ggplot2)
+library(forecast)
+library(tseries)
+library(readr)
+library(dplyr)
+
+options(scipen=999)
+data_modelo <- read_delim("C:/Users/User/Desktop/20201124-test-convocatoria/02. modelacion_datos/data_modelo.csv", ";", escape_double = FALSE, trim_ws = TRUE)
+
+datos <- data_modelo
+```
+
+Convertimos las fechas en formato "Date"
+
+```{r pressure, echo=FALSE}
+datos$Fecha = as.Date(datos$Fecha, '%d/%m/%Y')
+datos$Fecha <- format(as.Date(datos$Fecha ,format="%m/%d/%Y"),"%Y-%m-%d")
+datos$Fecha<- as.Date(datos$Fecha,format = "%Y-%m-%d")
+class(datos$Fecha)
+```
+
+# TIPOLIGÍA T1 
+
+Filtramos por la primera tipología para realizar la predicción: 
+
+```{r}
+datos1 <- datos %>%
+  filter(tipologia == "T1")
+
+borrar <- c("X6")
+datos1 <- datos1[ , !(names(datos1) %in% borrar)]
+datos1$Fecha <- format(as.Date(datos1$Fecha ,format="%m/%d/%Y"),"%Y-%m-%d")
+datos1$Fecha<- as.Date(datos1$Fecha,format = "%Y-%m-%d")
+```
+
+A continuación se presenta el gráfico del comportamiento de las variables para esta primera tipología: 
+
+```{r}
+ggplot(datos1, aes(Fecha, Gal)) + geom_line() + scale_x_date('month')  + ylab("Galones") +
+  xlab("")
+
+ggplot(datos1, aes(Fecha, Pas)) + geom_line() + scale_x_date('month')  + ylab("Pasajeros") +
+  xlab("")
+
+
+ggplot(datos1, aes(Fecha, KmT)) + geom_line() + scale_x_date('month')  + ylab("Kilometros") +
+  xlab("")
+
+```
+
+De lo anterior se puede evidenciar que de las tres variables no se tiene una tendencia clara en su comportamiento pero si un pico muy fuerte finalizando el periodo de estudio. Debido a que los datos tienen una estructura de serie temporal se procederá a tomar una media móvil, se escogerá una media movil semanal pues no hay suficientes datos y de esta manera no habrá tantos valores perdidos. 
+
+```{r}
+datos1$Pas7 = ma(datos1$Pas, order=7)
+
+datos1$Gal7 = ma(datos1$Gal, order=7)
+
+datos1$KmT7 = ma(datos1$KmT, order=7)
+```
+
+Una vez hallada la media móvil, se evidencia en el gráfico la serie suavizada vs la serie original 
+
+```{r}
+ggplot() +
+  geom_line(data = datos1, aes(x = Fecha, y = Pas, colour = "Counts")) +
+  geom_line(data = datos1, aes(x = Fecha, y = Pas7,   colour = "Weekly Moving Average"))  +
+  ylab('Pasajeros')
+
+
+ggplot() +
+  geom_line(data = datos1, aes(x = Fecha, y = KmT, colour = "Counts")) +
+  geom_line(data = datos1, aes(x = Fecha, y = KmT7,   colour = "Weekly Moving Average"))  +
+  ylab('Kilometros')
+
+ggplot() +
+  geom_line(data = datos1, aes(x = Fecha, y = Gal, colour = "Counts")) +
+  geom_line(data = datos1, aes(x = Fecha, y = Gal7,   colour = "Weekly Moving Average"))  +
+  ylab('Galones')
+```
+
+## Variable "Pas" 
+
+
+Comenzamos con la revisión de la variable "Pas" y hallamos el componente estacional de la serie mendiante suavizado 
+```{r}
+count_ma = ts(na.omit(datos1$Pas7), frequency=7)
+decomp = stl(count_ma, s.window="periodic")
+deseasonal_Pas <- seasadj(decomp)
+plot(decomp)
+```
+
+De acuerdo al gráfico se puede concluir que la serie no presenta estacionariedad, tampoco una tendencia clara pero si un pico descendente significativo al final del periodo. 
+
+La instalación de un modelo ARIMA requiere que la serie sea estacionaria e dice que una serie es  estacionaria cuando su media, varianza y autocovarianza son invariantes en el tiempo, para confirmar la estacionalidad de la serie, corremos la prueba de dickey - Fuller aumentada: 
+
+```{r}
+adf.test(count_ma, alternative = "stationary")
+Acf(count_ma, main='')
+Pacf(count_ma, main='')
+
+```
+
+Debido al que el p - valor es mayor al 5% de significancia, no se rechaza la hipótesis nula, lo que quiere decir que no es estacionaria. Como la serie no es estacionaria es necesario diferenciar, al diferenciar el modelo que se ajusta es un modelo ARIMA. 
+
+```{r}
+count_d1 = diff(deseasonal_Pas, differences = 1)
+plot(count_d1)
+adf.test(count_d1, alternative = "stationary")
+```
+
+Con la primera diferenciación la serie aun sigue sin tener estacionariedad, se vuelve a realizar una segunda diferenciación: 
+
+```{r}
+count_d1 = diff(deseasonal_Pas, differences = 2)
+plot(count_d1)
+adf.test(count_d1, alternative = "stationary")
+```
+
+Aun diferenciando 2 veces la serie sigue sin tener estacionariedad, se debe tener en cuenta que las veces máximas para diferenciar una serie son 2 veces debido a la pérdida de datos que se genera. De acuerdo a lo anterior, no se puede ajustar un modelo arima para esta variable. 
+
+
+## Variable Gal 
+
+```{r}
+count_ma1 = ts(na.omit(datos1$Gal7), frequency=7)
+decomp1 = stl(count_ma1, s.window="periodic")
+deseasonal_Gal <- seasadj(decomp1)
+plot(decomp)
+```
+
+De acuerdo al gráfico se puede concluir que la serie no presenta estacionariedad, y una tendencia suave hacia la baja y  pero si un pico descendente significativo al final del periodo. 
+
+La instalación de un modelo ARIMA requiere que la serie sea estacionaria e dice que una serie es  estacionaria cuando su media, varianza y autocovarianza son invariantes en el tiempo, para confirmar la estacionalidad de la serie, corremos la prueba de dickey - Fuller aumentada: 
+
+```{r}
+adf.test(count_ma1, alternative = "stationary")
+Acf(count_ma, main='')
+Pacf(count_ma, main='')
+
+```
+
+Debido al que el p - valor es mayor al 5% de significancia, no se rechaza la hipótesis nula, lo que quiere decir que no es estacionaria. Como la serie no es estacionaria es necesario diferenciar, al diferenciar el modelo que se ajusta es un modelo ARIMA. 
+
+```{r}
+count_d2 = diff(deseasonal_Gal, differences = 1)
+plot(count_d2)
+adf.test(count_d2, alternative = "stationary")
+```
+
+Con la primera diferenciación la serie aun sigue sin tener estacionariedad, se vuelve a realizar una segunda diferenciación: 
+
+```{r}
+count_d2 = diff(deseasonal_Gal, differences = 2)
+plot(count_d2)
+adf.test(count_d2, alternative = "stationary")
+```
+
+
+Aun diferenciando 2 veces la serie sigue sin tener estacionariedad, se debe tener en cuenta que las veces máximas para diferenciar una serie son 2 veces debido a la pérdida de datos que se genera. De acuerdo a lo anterior, no se puede ajustar un modelo arima para esta variable. 
+
+## Variable KmT
+
+```{r}
+count_ma2 = ts(na.omit(datos1$KmT7), frequency=7)
+decomp2 = stl(count_ma2, s.window="periodic")
+deseasonal_KmT <- seasadj(decomp2)
+plot(decomp)
+```
+
+De acuerdo al gráfico se puede concluir que la serie no presenta estacionariedad, y una tendencia suave hacia la baja y  pero si un pico descendente significativo al final del periodo. 
+
+La instalación de un modelo ARIMA requiere que la serie sea estacionaria e dice que una serie es  estacionaria cuando su media, varianza y autocovarianza son invariantes en el tiempo, para confirmar la estacionalidad de la serie, corremos la prueba de dickey - Fuller aumentada: 
+
+```{r}
+adf.test(count_ma2, alternative = "stationary")
+Acf(count_ma, main='')
+Pacf(count_ma, main='')
+
+```
+
+Debido al que el p - valor es mayor al 5% de significancia, no se rechaza la hipótesis nula, lo que quiere decir que no es estacionaria. Como la serie no es estacionaria es necesario diferenciar, al diferenciar el modelo que se ajusta es un modelo ARIMA. 
+
+```{r}
+count_d3 = diff(deseasonal_KmT, differences = 1)
+plot(count_d3)
+adf.test(count_d3, alternative = "stationary")
+```
+
+Con la primera diferenciación la serie aun sigue sin tener estacionariedad al 5% pero tiene estacionariedad al 10% de significancia, se vuelve a realizar una segunda diferenciación: 
+
+```{r}
+count_d3 = diff(deseasonal_KmT, differences = 2)
+plot(count_d3)
+adf.test(count_d3, alternative = "stationary")
+Acf(count_d3, main='')
+Pacf(count_d3, main='')
+```
+Se observa que a la segunda diferenciación se rechaza la hipótesis nula confirmando que la serie es estacionaria, de esta manera, según la función de autocorrelación y la autocorrelación parcial, el orden p del modelo es 0 y el orden q es 3. 
+
+
+```{r}
+arima1<- arima(deseasonal_KmT,order=c(0,2,3), method = "ML")
+arima1$aic
+
+tsdisplay(residuals(arima1), lag.max=12, main='Residuos (0,2,3)')
+```
+
+De acuerdo al modelo anterior, a continuación se presenta la predicción para la variable Kilometráje en la tipología 1. 
+```{r}
+prediccion <- forecast(arima1, h=12)
+plot(prediccion)
+```
+
+
+# TIPOLIGÍA T2
+
+Filtramos por la primera tipología para realizar la predicción: 
+
+```{r}
+datos2 <- datos %>%
+  filter(tipologia == "T2")
+
+borrar <- c("X6")
+datos2 <- datos2[ , !(names(datos2) %in% borrar)]
+datos2$Fecha <- format(as.Date(datos2$Fecha ,format="%m/%d/%Y"),"%Y-%m-%d")
+datos2$Fecha<- as.Date(datos2$Fecha,format = "%Y-%m-%d")
+```
+
+A continuación se presenta el gráfico del comportamiento de las variables para esta primera tipología: 
+
+```{r}
+ggplot(datos2, aes(Fecha, Gal)) + geom_line() + scale_x_date('month')  + ylab("Galones") +
+  xlab("")
+
+ggplot(datos2, aes(Fecha, Pas)) + geom_line() + scale_x_date('month')  + ylab("Pasajeros") +
+  xlab("")
+
+
+ggplot(datos2, aes(Fecha, KmT)) + geom_line() + scale_x_date('month')  + ylab("Kilometros") +
+  xlab("")
+
+```
+
+De lo anterior se puede evidenciar que de las tres variables no se tiene una tendencia clara en su comportamiento pero si un pico muy fuerte finalizando el periodo de estudio. Debido a que los datos tienen una estructura de serie temporal se procederá a tomar una media móvil, se escogerá una media movil semanal pues no hay suficientes datos y de esta manera no habrá tantos valores perdidos. 
+
+```{r}
+datos2$Pas7 = ma(datos2$Pas, order=7)
+
+datos2$Gal7 = ma(datos2$Gal, order=7)
+
+datos2$KmT7 = ma(datos2$KmT, order=7)
+```
+
+Una vez hallada la media móvil, se evidencia en el gráfico la serie suavizada vs la serie original 
+
+```{r}
+ggplot() +
+  geom_line(data = datos2, aes(x = Fecha, y = Pas, colour = "Counts")) +
+  geom_line(data = datos2, aes(x = Fecha, y = Pas7,   colour = "Weekly Moving Average"))  +
+  ylab('Pasajeros')
+
+
+ggplot() +
+  geom_line(data = datos2, aes(x = Fecha, y = KmT, colour = "Counts")) +
+  geom_line(data = datos2, aes(x = Fecha, y = KmT7,   colour = "Weekly Moving Average"))  +
+  ylab('Kilometros')
+
+ggplot() +
+  geom_line(data = datos2, aes(x = Fecha, y = Gal, colour = "Counts")) +
+  geom_line(data = datos2, aes(x = Fecha, y = Gal7,   colour = "Weekly Moving Average"))  +
+  ylab('Galones')
+```
+
+## Variable "Pas" 
+
+
+Comenzamos con la revisión de la variable "Pas" y hallamos el componente estacional de la serie mendiante suavizado 
+```{r}
+count_ma = ts(na.omit(datos2$Pas7), frequency=7)
+decomp = stl(count_ma, s.window="periodic")
+deseasonal_Pas <- seasadj(decomp)
+plot(decomp)
+```
+
+De acuerdo al gráfico se puede concluir que la serie no presenta estacionariedad, tampoco una tendencia clara pero si un pico descendente significativo al final del periodo. 
+
+La instalación de un modelo ARIMA requiere que la serie sea estacionaria e dice que una serie es  estacionaria cuando su media, varianza y autocovarianza son invariantes en el tiempo, para confirmar la estacionalidad de la serie, corremos la prueba de dickey - Fuller aumentada: 
+
+```{r}
+adf.test(count_ma, alternative = "stationary")
+Acf(count_ma, main='')
+Pacf(count_ma, main='')
+
+```
+
+Debido al que el p - valor es mayor al 5% de significancia, no se rechaza la hipótesis nula, lo que quiere decir que no es estacionaria. Como la serie no es estacionaria es necesario diferenciar, al diferenciar el modelo que se ajusta es un modelo ARIMA. 
+
+```{r}
+count_d1 = diff(deseasonal_Pas, differences = 1)
+plot(count_d1)
+adf.test(count_d1, alternative = "stationary")
+```
+
+Con la primera diferenciación la serie aun sigue sin tener estacionariedad, se vuelve a realizar una segunda diferenciación: 
+
+```{r}
+count_d1 = diff(deseasonal_Pas, differences = 2)
+plot(count_d1)
+adf.test(count_d1, alternative = "stationary")
+```
+
+Aun diferenciando 2 veces la serie sigue sin tener estacionariedad, se debe tener en cuenta que las veces máximas para diferenciar una serie son 2 veces debido a la pérdida de datos que se genera. De acuerdo a lo anterior, no se puede ajustar un modelo arima para esta variable. 
+
+
+## Variable Gal 
+
+```{r}
+count_ma1 = ts(na.omit(datos2$Gal7), frequency=7)
+decomp1 = stl(count_ma1, s.window="periodic")
+deseasonal_Gal <- seasadj(decomp1)
+plot(decomp)
+```
+
+De acuerdo al gráfico se puede concluir que la serie no presenta estacionariedad, y una tendencia suave hacia la baja y  pero si un pico descendente significativo al final del periodo. 
+
+La instalación de un modelo ARIMA requiere que la serie sea estacionaria e dice que una serie es  estacionaria cuando su media, varianza y autocovarianza son invariantes en el tiempo, para confirmar la estacionalidad de la serie, corremos la prueba de dickey - Fuller aumentada: 
+
+```{r}
+adf.test(count_ma1, alternative = "stationary")
+Acf(count_ma, main='')
+Pacf(count_ma, main='')
+
+```
+
+Debido al que el p - valor es mayor al 5% de significancia, no se rechaza la hipótesis nula, lo que quiere decir que no es estacionaria. Como la serie no es estacionaria es necesario diferenciar, al diferenciar el modelo que se ajusta es un modelo ARIMA. 
+
+```{r}
+count_d2 = diff(deseasonal_Gal, differences = 1)
+plot(count_d2)
+adf.test(count_d2, alternative = "stationary")
+```
+
+Con la primera diferenciación la serie aun sigue sin tener estacionariedad, se vuelve a realizar una segunda diferenciación: 
+
+```{r}
+count_d2 = diff(deseasonal_Gal, differences = 2)
+plot(count_d2)
+adf.test(count_d2, alternative = "stationary")
+Acf(count_d2, main='')
+Pacf(count_d2, main='')
+```
+
+Se observa que a la segunda diferenciación se rechaza la hipótesis nula confirmando que la serie es estacionaria, de esta manera, según la función de autocorrelación y la autocorrelación parcial, el orden p del modelo es 1 y el orden q es 1. 
+
+
+```{r}
+arima2<- arima(deseasonal_Gal,order=c(1,2,1), method = "ML")
+arima2$aic
+
+tsdisplay(residuals(arima2), lag.max=12, main='Residuos (1,2,1)')
+
+
+```
+
+
+De acuerdo al modelo anterior, a continuación se presenta la predicción para la variable Kilometráje en la tipología 1. 
+```{r}
+prediccion1 <- forecast(arima2, h=12)
+plot(prediccion1)
+```
+
+
+## Variable KmT
+
+```{r}
+count_ma2 = ts(na.omit(datos2$KmT7), frequency=7)
+decomp2 = stl(count_ma2, s.window="periodic")
+deseasonal_KmT <- seasadj(decomp2)
+plot(decomp)
+```
+
+De acuerdo al gráfico se puede concluir que la serie no presenta estacionariedad, y una tendencia suave hacia la baja y  pero si un pico descendente significativo al final del periodo. 
+
+La instalación de un modelo ARIMA requiere que la serie sea estacionaria e dice que una serie es  estacionaria cuando su media, varianza y autocovarianza son invariantes en el tiempo, para confirmar la estacionalidad de la serie, corremos la prueba de dickey - Fuller aumentada: 
+
+```{r}
+adf.test(count_ma2, alternative = "stationary")
+Acf(count_ma, main='')
+Pacf(count_ma, main='')
+
+```
+
+Debido al que el p - valor es mayor al 5% de significancia, no se rechaza la hipótesis nula, lo que quiere decir que no es estacionaria. Como la serie no es estacionaria es necesario diferenciar, al diferenciar el modelo que se ajusta es un modelo ARIMA. 
+
+```{r}
+count_d3 = diff(deseasonal_KmT, differences = 1)
+plot(count_d3)
+adf.test(count_d3, alternative = "stationary")
+```
+
+Con la primera diferenciación la serie aun sigue sin tener estacionariedad, se vuelve a realizar una segunda diferenciación: 
+
+```{r}
+count_d3 = diff(deseasonal_KmT, differences = 2)
+plot(count_d3)
+adf.test(count_d3, alternative = "stationary")
+Acf(count_d3, main='')
+Pacf(count_d3, main='')
+```
+Se observa que a la segunda diferenciación se rechaza la hipótesis nula confirmando que la serie es estacionaria, de esta manera, según la función de autocorrelación y la autocorrelación parcial, el orden p del modelo es 0 y el orden q es 3. 
+
+
+```{r}
+arima3<- arima(deseasonal_KmT,order=c(0,2,3), method = "ML")
+arima3$aic
+
+tsdisplay(residuals(arima3), lag.max=12, main='Residuos (0,2,3)')
+```
+
+De acuerdo al modelo anterior, a continuación se presenta la predicción para la variable Kilometráje en la tipología 2. 
+```{r}
+prediccion <- forecast(arima3, h=12)
+plot(prediccion)
+```
