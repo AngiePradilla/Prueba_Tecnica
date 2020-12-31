@@ -1,0 +1,479 @@
+---
+title: "Segundo_Punto_Correción"
+author: "Angie Lorena Pradilla"
+date: "30/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+La idea principal del modelo es predecir el rendimiento rendimiento del combustible en realción a los pasajeros para esto fue necesario dividir los kilómetros recorridos por los galones de combustible. 
+
+```{r }
+library(PerformanceAnalytics)
+library(readr)
+library(dplyr)
+library(ggplot2)
+data_modelo <- read_csv("C:/Users/User/Desktop/20201124-test-convocatoria/02. modelacion_datos/data_modelo1.csv")
+datos <- data_modelo
+data_modelo$rendimiento <- datos$KmT/datos$Gal
+```
+
+# Tipologia T1
+
+Vamos a tomar la primera tipología para llevar a cabo el modelo y su análisis
+
+```{r}
+
+test1 <- data_modelo %>% 
+  mutate(Fecha = lubridate::ymd(Fecha)) %>% 
+  filter(tipologia == "T1") %>% 
+  select(Fecha, Pas, rendimiento)
+```
+
+Antes de llevar a cabo el modelo es importante verificar la correlación entre variables para tener una idea tienen algun indicio de relación ya sea positiva o negativa, para ello visualizamos dicha correlación, gráfico de dispersión y densidades de la siguiente manera: 
+
+```{r}
+dat1 <- data.frame(test1$Pas, test1$rendimiento)
+chart.Correlation(dat1)
+```
+
+De acuerdo con el gráfico anterior es posible decir que existe una fuerte correlación inversa entre la variable pasajeros y el rendmiento del combustible y tiene sentido pues al transportar menos pasajeros el vehículo 
+hace un menor esfuerzo y por ende el rendimiento de combustible por cada kilometro es mayor. 
+
+De esta manera realizamos el modelo de regresión simple en donde la variable dependiente es el rendmiento que
+dependerá del número de pasajeros.  
+
+```{r}
+modelo1 <- lm(rendimiento ~ Pas, test1)
+summary(modelo1)
+```
+A continuación la gráfica del modelo:
+
+```{r}
+ggplot(data = test1, mapping = aes(x = Pas, y = rendimiento)) +
+  geom_point(color = "firebrick", size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(title = "Rendmiento ~ Pasajeros", x = "Pasajeros", y = "Rendimiento") +
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+
+Antes de realizar algún tipo de predicción es necesario llevar a cabo los supuestos del modelo 
+
+## Independecia de residuales
+
+```{r}
+plot(modelo1$residuals)
+
+```
+
+No se observa un patrón definido para los residuos, quiere decir que al no seguir una tendencia clara es posible decir que los residuos son independientes, sin embargo observaremos los residuos estandarizados
+
+```{r}
+restan<-rstandard(modelo1)
+  plot(restan)
+
+```
+
+Se confirma que no hay un patrón definido ni una tendencia de los residuos, ademas estos se mueven entre el invervalo aproximado de -2 y 2 y no se evidencian datos atípicos.
+
+
+## Normalidad de los residuos 
+
+En este caso la hipótesis nula es Ho= Los residuales tienen distribución normal vs H1= Los residuos no tienen distribución normal, en este caso nuestro objetivo sería no rechazar la nula
+
+```{r}
+shapiro.test(modelo1$residuals)
+
+```
+
+El modelo cumple con el supuesto de normalidad dado a que el p valor es mayor al nivel de significancia del 5%
+
+## Homoscedasticidad de los residuos con el test Breush- Pagan 
+```{r}
+library(lmtest)
+bptest(modelo1)
+```
+
+Dado lo anterior, se puede decir que los residuales tienen varianza constante debido a que no rechazamos la hipotesis nula dado a que el p valor es mayor al nivel de significancia del 5%. **De acuerdo a esto el modelo 
+cumpliría con las condiciones para aceptar el modelo**
+
+
+# Tipología t2
+
+```{r}
+
+test2 <- data_modelo %>% 
+  mutate(Fecha = lubridate::ymd(Fecha)) %>% 
+  filter(tipologia == "T2") %>% 
+  select(Fecha, Pas, rendimiento)
+```
+
+Antes de llevar a cabo el modelo es importante verificar la correlación entre variables para tener una idea tienen algun indicio de relación ya sea positiva o negativa, para ello visualizamos dicha correlación, gráfico de dispersión y densidades de la siguiente manera: 
+
+```{r}
+dat2 <- data.frame(test2$Pas, test2$rendimiento)
+chart.Correlation(dat2)
+```
+
+De acuerdo con el gráfico anterior es posible decir que existe una fuerte correlación inversa entre la variable pasajeros y el rendmiento del combustible y tiene sentido pues al transportar menos pasajeros el vehículo 
+hace un menor esfuerzo y por ende el rendimiento de combustible por cada kilometro es mayor. 
+
+De esta manera realizamos el modelo de regresión simple en donde la variable dependiente es el rendmiento que
+dependerá del número de pasajeros.  
+
+```{r}
+modelo2 <- lm(rendimiento ~ Pas, test2)
+summary(modelo2)
+```
+A continuación la gráfica del modelo:
+
+```{r}
+ggplot(data = test2, mapping = aes(x = Pas, y = rendimiento)) +
+  geom_point(color = "firebrick", size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(title = "Rendmiento ~ Pasajeros", x = "Pasajeros", y = "Rendimiento") +
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+
+Antes de realizar algún tipo de predicción es necesario llevar a cabo los supuestos del modelo 
+
+## Independecia de residuales
+
+```{r}
+plot(modelo2$residuals)
+
+```
+
+No se observa un patrón definido para los residuos, quiere decir que al no seguir una tendencia clara es posible decir que los residuos son independientes, sin embargo observaremos los residuos estandarizados
+
+```{r}
+restan1<-rstandard(modelo2)
+  plot(restan1)
+
+```
+
+Se confirma que no hay un patrón definido ni una tendencia de los residuos, ademas estos se mueven entre el invervalo aproximado de -2 y 2 y no se evidencian datos atípicos.
+
+
+## Normalidad de los residuos 
+
+En este caso la hipótesis nula es Ho= Los residuales tienen distribución normal vs H1= Los residuos no tienen distribución normal, en este caso nuestro objetivo sería no rechazar la nula
+
+```{r}
+shapiro.test(modelo2$residuals)
+
+```
+
+El modelo cumple con el supuesto de normalidad dado a que el p valor es mayor al nivel de significancia del 5%
+
+## Homoscedasticidad de los residuos con el test Breush- Pagan 
+```{r}
+library(lmtest)
+bptest(modelo2)
+```
+
+Dado lo anterior, se puede decir que los residuales tienen varianza constante debido a que no rechazamos la hipotesis nula dado a que el p valor es mayor al nivel de significancia del 5%. **De acuerdo a esto el modelo 
+cumpliría con las condiciones para aceptar el modelo**
+
+# Tipología T3
+
+```{r}
+
+test3 <- data_modelo %>% 
+  mutate(Fecha = lubridate::ymd(Fecha)) %>% 
+  filter(tipologia == "T3") %>% 
+  select(Fecha, Pas, rendimiento)
+```
+
+Antes de llevar a cabo el modelo es importante verificar la correlación entre variables para tener una idea tienen algun indicio de relación ya sea positiva o negativa, para ello visualizamos dicha correlación, gráfico de dispersión y densidades de la siguiente manera: 
+
+```{r}
+dat3 <- data.frame(test3$Pas, test3$rendimiento)
+chart.Correlation(dat3)
+```
+
+De acuerdo con el gráfico anterior es posible decir que existe una fuerte correlación inversa entre la variable pasajeros y el rendmiento del combustible y tiene sentido pues al transportar menos pasajeros el vehículo 
+hace un menor esfuerzo y por ende el rendimiento de combustible por cada kilometro es mayor. 
+
+De esta manera realizamos el modelo de regresión simple en donde la variable dependiente es el rendmiento que
+dependerá del número de pasajeros.  
+
+```{r}
+modelo3 <- lm(rendimiento ~ Pas, test3)
+summary(modelo3)
+```
+A continuación la gráfica del modelo:
+
+```{r}
+ggplot(data = test3, mapping = aes(x = Pas, y = rendimiento)) +
+  geom_point(color = "firebrick", size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(title = "Rendmiento ~ Pasajeros", x = "Pasajeros", y = "Rendimiento") +
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+
+Antes de realizar algún tipo de predicción es necesario llevar a cabo los supuestos del modelo 
+
+## Independecia de residuales
+
+```{r}
+plot(modelo3$residuals)
+
+```
+
+No se observa un patrón definido para los residuos, quiere decir que al no seguir una tendencia clara es posible decir que los residuos son independientes, sin embargo observaremos los residuos estandarizados
+
+```{r}
+restan2<-rstandard(modelo3)
+  plot(restan2)
+
+```
+
+Se confirma que no hay un patrón definido ni una tendencia de los residuos, ademas estos se mueven entre el invervalo aproximado de -2 y 2 y no se evidencian datos atípicos.
+
+
+## Normalidad de los residuos 
+
+En este caso la hipótesis nula es Ho= Los residuales tienen distribución normal vs H1= Los residuos no tienen distribución normal, en este caso nuestro objetivo sería no rechazar la nula
+
+```{r}
+shapiro.test(modelo3$residuals)
+
+```
+
+El modelo cumple con el supuesto de normalidad dado a que el p valor es mayor al nivel de significancia del 5%
+
+## Homoscedasticidad de los residuos con el test Breush- Pagan 
+```{r}
+library(lmtest)
+bptest(modelo3)
+```
+
+Dado lo anterior, se puede decir que los residuales tienen varianza constante debido a que no rechazamos la hipotesis nula dado a que el p valor es mayor al nivel de significancia del 5%. **De acuerdo a esto el modelo 
+cumpliría con las condiciones para aceptar el modelo**
+
+#Tipología T4
+
+```{r}
+
+test4 <- data_modelo %>% 
+  mutate(Fecha = lubridate::ymd(Fecha)) %>% 
+  filter(tipologia == "T4") %>% 
+  select(Fecha, Pas, rendimiento)
+```
+
+Antes de llevar a cabo el modelo es importante verificar la correlación entre variables para tener una idea tienen algun indicio de relación ya sea positiva o negativa, para ello visualizamos dicha correlación, gráfico de dispersión y densidades de la siguiente manera: 
+
+```{r}
+dat4 <- data.frame(test4$Pas, test4$rendimiento)
+chart.Correlation(dat4)
+```
+
+De acuerdo con el gráfico anterior es posible decir que existe una fuerte correlación inversa entre la variable pasajeros y el rendmiento del combustible y tiene sentido pues al transportar menos pasajeros el vehículo 
+hace un menor esfuerzo y por ende el rendimiento de combustible por cada kilometro es mayor. 
+
+De esta manera realizamos el modelo de regresión simple en donde la variable dependiente es el rendmiento que
+dependerá del número de pasajeros.  
+
+```{r}
+modelo4 <- lm(rendimiento ~ Pas, test4)
+summary(modelo4)
+```
+A continuación la gráfica del modelo:
+
+```{r}
+ggplot(data = test4, mapping = aes(x = Pas, y = rendimiento)) +
+  geom_point(color = "firebrick", size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(title = "Rendmiento ~ Pasajeros", x = "Pasajeros", y = "Rendimiento") +
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+
+Antes de realizar algún tipo de predicción es necesario llevar a cabo los supuestos del modelo 
+
+## Independecia de residuales
+
+```{r}
+plot(modelo4$residuals)
+
+```
+
+No se observa un patrón definido para los residuos, quiere decir que al no seguir una tendencia clara es posible decir que los residuos son independientes, sin embargo observaremos los residuos estandarizados
+
+```{r}
+restan3<-rstandard(modelo4)
+  plot(restan3)
+
+```
+
+Se confirma que no hay un patrón definido ni una tendencia de los residuos, ademas estos se mueven entre el invervalo aproximado de -2 y 2 y no se evidencian datos atípicos.
+
+
+## Normalidad de los residuos 
+
+En este caso la hipótesis nula es Ho= Los residuales tienen distribución normal vs H1= Los residuos no tienen distribución normal, en este caso nuestro objetivo sería no rechazar la nula
+
+```{r}
+shapiro.test(modelo4$residuals)
+
+```
+
+El modelo cumple con el supuesto de normalidad dado a que el p valor es mayor al nivel de significancia del 5%
+
+## Homoscedasticidad de los residuos con el test Breush- Pagan 
+```{r}
+library(lmtest)
+bptest(modelo4)
+```
+
+Dado lo anterior, se puede decir que los residuales tienen varianza constante debido a que no rechazamos la hipotesis nula dado a que el p valor es mayor al nivel de significancia del 5%. **De acuerdo a esto el modelo 
+cumpliría con las condiciones para aceptar el modelo**
+
+# Tipología T5
+
+```{r}
+
+test5 <- data_modelo %>% 
+  mutate(Fecha = lubridate::ymd(Fecha)) %>% 
+  filter(tipologia == "T5") %>% 
+  select(Fecha, Pas, rendimiento)
+```
+
+Antes de llevar a cabo el modelo es importante verificar la correlación entre variables para tener una idea tienen algun indicio de relación ya sea positiva o negativa, para ello visualizamos dicha correlación, gráfico de dispersión y densidades de la siguiente manera: 
+
+```{r}
+dat5 <- data.frame(test5$Pas, test5$rendimiento)
+chart.Correlation(dat5)
+```
+
+De acuerdo con el gráfico anterior es posible decir que existe una fuerte correlación inversa entre la variable pasajeros y el rendmiento del combustible y tiene sentido pues al transportar menos pasajeros el vehículo 
+hace un menor esfuerzo y por ende el rendimiento de combustible por cada kilometro es mayor. 
+
+De esta manera realizamos el modelo de regresión simple en donde la variable dependiente es el rendmiento que
+dependerá del número de pasajeros.  
+
+```{r}
+modelo5 <- lm(rendimiento ~ Pas, test5)
+summary(modelo5)
+```
+A continuación la gráfica del modelo:
+
+```{r}
+ggplot(data = test5, mapping = aes(x = Pas, y = rendimiento)) +
+  geom_point(color = "firebrick", size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(title = "Rendmiento ~ Pasajeros", x = "Pasajeros", y = "Rendimiento") +
+  theme_bw() + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+
+Antes de realizar algún tipo de predicción es necesario llevar a cabo los supuestos del modelo 
+
+## Independecia de residuales
+
+```{r}
+plot(modelo5$residuals)
+
+```
+
+No se observa un patrón definido para los residuos, quiere decir que al no seguir una tendencia clara es posible decir que los residuos son independientes, sin embargo observaremos los residuos estandarizados
+
+```{r}
+restan4<-rstandard(modelo5)
+  plot(restan4)
+
+```
+
+Se confirma que no hay un patrón definido ni una tendencia de los residuos, ademas estos se mueven entre el invervalo aproximado de -2 y 2 y no se evidencian datos atípicos.
+
+
+## Normalidad de los residuos 
+
+En este caso la hipótesis nula es Ho= Los residuales tienen distribución normal vs H1= Los residuos no tienen distribución normal, en este caso nuestro objetivo sería no rechazar la nula
+
+```{r}
+shapiro.test(modelo5$residuals)
+
+```
+
+El modelo cumple con el supuesto de normalidad dado a que el p valor es mayor al nivel de significancia del 5%
+
+## Homoscedasticidad de los residuos con el test Breush- Pagan 
+```{r}
+library(lmtest)
+bptest(modelo5)
+```
+
+Dado lo anterior, se puede decir que los residuales tienen varianza constante debido a que no rechazamos la hipotesis nula dado a que el p valor es mayor al nivel de significancia del 5%. **De acuerdo a esto el modelo 
+cumpliría con las condiciones para aceptar el modelo**
+
+De acuerdo a lo anterior, las funciones y predicciones para los modelos de las 5 tipologías anteriores son: 
+
+### T1
+
+$$Rendimiento\left(Pasajeros\right) = \ 6.93227 - 0.000000009369* Pasajeros$$ 
+En este modelo, por cada unidad de pasajeros adicional, el rendimiento del combustible disminuye en 0.000000009369 unidades. 
+
+Con lo siguiente vamos a calcular el rendimiento esperado cuando hay 49989132 pasajeros: 
+
+```{r}
+predict(modelo1, data.frame(Pas = 49989132), interval = "prediction")
+```
+
+### T2
+
+$$Rendimiento\left(Pasajeros\right) = \ 6.42825 - 0.0000000138007*Pasajeros$$ 
+En este modelo, por cada unidad de pasajeros adicional, el rendimiento del combustible disminuye en 0.0000000138007 unidades. 
+
+Con lo siguiente vamos a calcular el rendimiento esperado cuando hay 49989132 pasajeros: 
+
+```{r}
+
+predict(modelo2, data.frame(Pas = 49989132), interval = "prediction")
+```
+
+### T3
+
+$$Rendimiento\left(Pasajeros\right) = \ 18.6462359236 - 0.0000051874*Pasajeros$$ 
+En este modelo, por cada unidad de pasajeros adicional, el rendimiento del combustible disminuye en 0.0000051874 unidades. 
+
+Con lo siguiente vamos a calcular el rendimiento esperado cuando hay 49989132 pasajeros: 
+
+```{r}
+
+predict(modelo3, data.frame(Pas = 49989132), interval = "prediction")
+```
+
+
+### T4
+
+$$Rendimiento\left(Pasajeros\right) = \ 16.65906147579 - 0.00000128371*Pasajeros$$ 
+En este modelo, por cada unidad de pasajeros adicional, el rendimiento del combustible disminuye en 0.00000128371 unidades. 
+
+Con lo siguiente vamos a calcular el rendimiento esperado cuando hay 49989132 pasajeros: 
+
+```{r}
+
+predict(modelo4, data.frame(Pas = 49989132), interval = "prediction")
+```
+
+
+### T5
+
+$$Rendimiento\left(Pasajeros\right) = \ 22.0496 - 0.000015234*Pasajeros$$ 
+En este modelo, por cada unidad de pasajeros adicional, el rendimiento del combustible disminuye en 0.000015234 unidades. 
+
+Con lo siguiente vamos a calcular el rendimiento esperado cuando hay 49989132 pasajeros: 
+
+```{r}
+
+predict(modelo5, data.frame(Pas = 49989132), interval = "prediction")
+```
+
